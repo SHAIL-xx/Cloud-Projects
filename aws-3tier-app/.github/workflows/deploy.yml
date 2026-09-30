@@ -1,0 +1,48 @@
+name: Build and Deploy to AWS
+
+on:
+    push:
+        branches:
+            - main # Triggers every time you merge to the main branch
+
+jobs:
+    deploy:
+        runs-on: ubuntu-latest
+
+        steps:
+            - name: Checkout Code
+              uses: actions/checkout@v4
+
+            - name: Configure AWS Credentials
+              uses: aws-actions/configure-aws-credentials@v4
+              with:
+                aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID}}
+                aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+                aws-region: ap-south-1
+
+            - name: Login to Amazon ECR
+              id: login-ecr
+              uses: aws-actions/amazon-ecr-login@v2
+
+            - name: Build and Push Docker Image
+              env:
+                ECR_REGISTRY: ${{ steps.login-ecr.outputs.registry }}
+                ECR_REPOSITORY: 3tier-app-repo
+                IMAGE_TAG: ${{ github.sha }}
+              run: |
+                # Build the image using the Phase 1 Dockerfile
+                docker build -t $ECR_REGISTRY/$ECR_REPOSITORY:latest ./app
+
+                # Push it to the AWS private registry
+                docker push $ECR_REGISTRY/$ECR_REPOSITORY:latest
+
+            - name: Deploy to Private EC2 via AWS SSM
+              env:
+                INSTANCE_ID: ${{ secrets.EC2_INSTANCE_ID }}
+              run:
+                # Send a secure command to the private EC2 instance to pull and restart the container
+                aws ssm send-command \
+                    --instance-ids "$INSTANCE_ID" \
+                    --document-name "AWS-RunShellScript"\
+                    --parameters 'commands=["aws ecr get-login-password --region ap-south-1 | docker login --username AWS -password-stdin '${{ steps.login-ecr.outputs.registry}}'"], "docker pull '${{ steps.login-ecr.outputs.registry}}'/3tier-app-repo:latest", "docker stop api || true", "docker rm api || true", "docker run -d --name api -p 8000:8000 '${{ steps.login-ecr.outputs.registry}}'/3tier-app-repo:latest"]''
+

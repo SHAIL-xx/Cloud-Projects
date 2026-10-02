@@ -13,7 +13,14 @@ def create_storage_and_database(private_subnet_ids,db_sg_id):
 
     # S3 Storage
     bucket_name = "private-cloud-app-media"
-    s3.create_bucket(Bucket=bucket_name)
+    region = s3.meta.region_name
+    if region == 'us-east-1':
+        s3.create_bucket(Bucket=bucket_name)
+    else:
+        s3.create_bucket(
+        Bucket=bucket_name,
+        CreateBucketConfiguration={'LocationConstraint': region}
+    )
 
     print(" Provisioning RDS database")
     try:

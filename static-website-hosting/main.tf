@@ -1,42 +1,42 @@
 # Creating S3 Bucket for Static Website
-resource "aws_s3_bucket" "website"{
-    bucket = "my-cloud-resume-bucket"
+resource "aws_s3_bucket" "website" {
+  bucket = "my-cloud-resume-bucket"
 }
 
-resource "aws_s3_bucket_website_configuration" "website_config"{
-    bucket = aws_s3_bucket.website.id
+resource "aws_s3_bucket_website_configuration" "website_config" {
+  bucket = aws_s3_bucket.website.id
 
-    index_document{
-        suffix = "index.html"
-    }
+  index_document {
+    suffix = "index.html"
+  }
 }
 
 # Creating DynamoDB table for Visitor Count
-resource "aws_s3_bucket_policy" "public_read"{
-    bucket = aws_s3_bucket.website.id
-    policy = jsonencode({
-        Version = "2012-10-17"
-        Statement = [
-            {
-                Sud = "PublicReadGetObject"
-                Effect = "Allow"
-                Principal = "*"
-                Action = "s3:GetObject"
-                Resource = "${aws_s3_bucket.website.arn}/*"
-            }
-        ]
-    })
+resource "aws_s3_bucket_policy" "public_read" {
+  bucket = aws_s3_bucket.website.id
+  policy = jsonencode({
+    Version = "2012-10-17"
+    Statement = [
+      {
+        Sud       = "PublicReadGetObject"
+        Effect    = "Allow"
+        Principal = "*"
+        Action    = "s3:GetObject"
+        Resource  = "${aws_s3_bucket.website.arn}/*"
+      }
+    ]
+  })
 }
 
-resource "aws_dynamodb_table" "visitor_count"{
-    name = "visitor_count"
-    billing_mode = "PAY_PER_REQUEST"
-    hash_key = "id"
+resource "aws_dynamodb_table" "visitor_count" {
+  name         = "visitor_count"
+  billing_mode = "PAY_PER_REQUEST"
+  hash_key     = "id"
 
-    attribute {
-        name = "id"
-        type = "S"
-    }
+  attribute {
+    name = "id"
+    type = "S"
+  }
 }
 
 # Package the Python file into a ZIP
@@ -73,7 +73,7 @@ resource "aws_lambda_function" "visitor_counter" {
   environment {
     variables = {
       LOCALSTACK_HOSTNAME = "localhost.localstack.cloud"
-}
+    }
   }
 }
 
